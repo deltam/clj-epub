@@ -97,7 +97,7 @@
   "テキストからePub表示に不都合なHTMLタグ、改行を取り除く"
   [text]
   (.. text
-      (replaceAll "([^\n]*)\n" "<p>$1</p>")
+      (replaceAll "([^(<[^>]+>)\n]*)\n" "<p>$1</p>")
       (replaceAll "<br>" "<br/>")
       (replaceAll "<img([^>]*)>" "<img$1/>")))
 
