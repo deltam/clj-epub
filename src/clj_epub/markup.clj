@@ -27,13 +27,15 @@
               [:head
                [:title title]
                [:meta {:http-equiv "Content-Type" :content "application/xhtml+xml; charset=utf-8"}]]
-              [:body (str (normalize-text text))]])))
+              [:body (normalize-text text)]])))
 
 
 (defn epub-text
   "ePubのページ構成要素を作成し、返す"
   [title text]
-  {:name (str "OEBPS/" title ".html")
+  {:ncx  title
+   :src  (str title ".html")
+   :name (str "OEBPS/" title ".html")
    :text (text->xhtml title text)})
 
 
@@ -51,7 +53,6 @@
         markups (flatten
                  (map #(markup-text {:markup markup-type :title (:title %) :text (:text %)})
                       chapters))]
-    (println markups)
     (for [t markups]
       (epub-text (:title t) (:text t)))))
 
@@ -153,7 +154,7 @@
         prelude (re-find #"(?si)^(.*?)(?=(?:<h\d>|$))" html)
         sections (for [section (re-seq #"(?si)<h(\d)>(.*?)</h\1>(.*?)(?=(?:<h\d>|\s*$))" html)]
                    (let [[all level value text] section]
-                     {:ncx value :text text}))]
+                     {:title value :text text}))]
       sections))
 
 (defmethod markup-text :markdown

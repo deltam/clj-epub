@@ -54,10 +54,10 @@
                 [:manifest
                  [:item {:id "ncx" :href "toc.ncx" :media-type "application/x-dtbncx+xml"}]
                  (for [s sections]
-                   [:item {:id s :href (str s ".html") :media-type "application/xhtml+xml"}])]
+                   [:item {:id (:ncx s) :href (:src s) :media-type "application/xhtml+xml"}])]
                 [:spine {:toc "ncx"}
                  (for [s sections]
-                   [:itemref {:idref s}])]]))))
+                   [:itemref {:idref (:ncx s)}])]]))))
 
 
 (defn toc-ncx
@@ -75,10 +75,10 @@
                  [:meta {:content "0" :name "dtb:maxPageNumber"}]]
                 [:navMap
                  (for [sec section_titles]
-                   [:navPoint {:id sec :playOrder (str (inc (count (take-while #(not (= sec %)) section_titles))))}; todo
+                   [:navPoint {:id (:ncx sec) :playOrder (str (inc (count (take-while #(not (= sec %)) section_titles))))}; todo
                     [:navLabel
-                     [:text sec]]
-                    [:content {:src (str sec ".html")}]])
+                     [:text (:ncx sec)]]
+                    [:content {:src (:src sec)}]])
                  ]]))))
 
 
@@ -87,12 +87,11 @@
   "generate ePub file. args are epub filename, epub title of metadata, includes text files."
   [{output :output input-files :input title :title author :author marktype :markup}]
   (let [id       (generate-uuid)
-        mfiles   (map #(ftext % ((markup-types marktype) (slurp %))) input-files) ; todo refactoring
-        ptexts   (flatten (map #((slice-types marktype) (:name %) (:text %)) mfiles)) ; ePub page cut by files
-        sections (map #(get % :ncx) ptexts)]
+;        mfiles   (map #(ftext % ((markup-types marktype) (slurp %))) input-files) ; todo refactoring
+;        ptexts   (flatten (map #((slice-types marktype) (:name %) (:text %)) mfiles)) ; ePub page cut by files
+        eptexts  (files->epub-texts marktype input-files)]
     {:mimetype    (mimetype)
      :meta-inf    (meta-inf)
-     :content-opf (content-opf title (or author "Nobody") id sections)
-     :toc-ncx     (toc-ncx id sections)
-     :html        (for [s ptexts]
-                    (epub-text (s :ncx) (s :text)))}))
+     :content-opf (content-opf title (or author "Nobody") id eptexts)
+     :toc-ncx     (toc-ncx id eptexts)
+     :html        eptexts}))
