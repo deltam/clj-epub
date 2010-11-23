@@ -1,15 +1,68 @@
 (ns clj-epub.markup
   ""
-  (:use [clojure.contrib.io :only (reader)]
-        [hiccup.core])
-  (:import [java.util UUID]
-           [com.petebevin.markdown MarkdownProcessor]))
+  (:use [hiccup.core])
+  (:import [com.petebevin.markdown MarkdownProcessor]))
+
+
+; 章立ての切り分け
+(defmulti cut-by-chapter :markup)
+;  各記法による修飾
+(defmulti markup-text :markup)
+
+
+(defn normalize-text
+  "テキストからePub表示に不都合なHTMLタグ、改行を取り除く"
+  [text]
+  (.. text
+      (replaceAll "<br>" "<br/>")
+      (replaceAll "<img([^>]*)>" "<img$1/>")))
+
+
+(defn text->xhtml
+  "title,textをつなげたXHTMLを返す"
+  [title text]
+  (str "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
+       "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n"
+       (html [:html {:xmlns "http://www.w3.org/1999/xhtml"}
+              [:head
+               [:title title]
+               [:meta {:http-equiv "Content-Type" :content "application/xhtml+xml; charset=utf-8"}]]
+              [:body (str (normalize-text text))]])))
+
+
+(defn epub-text
+  "ePubのページ構成要素を作成し、返す"
+  [title text]
+  {:name (str "OEBPS/" title ".html")
+   :text (text->xhtml title text)})
+
+
+(defn get-epub-meta
+  "EPUBメタデータが埋めこまれている場合、それを返す"
+  [markup-type text]
+  {:title "" :author ""})
+
+
+(defn files->epub-texts
+  [markup-type filenames]
+  (let [chapters (flatten
+                  (map #(cut-by-chapter {:markup markup-type :title % :text (slurp %)})
+                       filenames))
+        markups (flatten
+                 (map #(markup-text {:markup markup-type :title (:title %) :text (:text %)})
+                      chapters))]
+    (println markups)
+    (for [t markups]
+      (epub-text (:title t) (:text t)))))
 
 
 
+
+;; 簡易記法タグ
 (def meta-tag
-     {:chapter "^!!"
-      :title   "^!title!"})
+;     {:chapter "!!"
+     {:chapter "[\\^\n]!!"
+      :title   "!title!"})
 
 (defn slice-easy-text
   "簡単なマークアップで目次を切り分ける"
@@ -18,7 +71,6 @@
     (let [ncx  (.. sec (replaceAll "\n.*" "\n") trim)
           text (.. sec (replaceFirst "^[^\n]*\n" ""))]
       {:ncx ncx, :text text})))
-
 
 
 (defn markdown->html
@@ -59,75 +111,43 @@
       :plain    no-slice-text})
 
 
-(defn normalize-text
-  "テキストからePub表示に不都合なHTMLタグ、改行を取り除く"
-  [text]
-  (.. text
-      (replaceAll "([^(<[^>]+>)\n]*)\n" "<p>$1</p>")
-      (replaceAll "<br>" "<br/>")
-      (replaceAll "<img([^>]*)>" "<img$1/>")))
 
 
-(defn text->xhtml
-  "title,textをつなげたXHTMLを返す"
-  [title text]
-  (str "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
-       "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n"
-       (html [:html {:xmlns "http://www.w3.org/1999/xhtml"}
-              [:head
-               [:title title]
-               [:meta {:http-equiv "Content-Type" :content "application/xhtml+xml; charset=utf-8"}]]
-              [:body (str "<p><b>" title "</b></p>"
-                          (normalize-text text))]
-              ])))
-
-
-(defn epub-text
-  "ePubのページ構成要素を作成し、返す"
-  [title text]
-  {:name (str "OEBPS/" title ".html")
-   :text (text->xhtml title text)})
-
-
-(defn easy-markup-type [title text]
-  {:markup-type :easy-markup
-   :title title
-   :text text})
-(defn plain-type [title text]
-  {:markup-type :plain
-   :title title
-   :text text})
-(defn markdown-type [title text]
-  {:markup-type :markdown:
-   :title title
-   :text text})
-
-
-(defmulti cut-by-chapter :markup-type)
-(defmulti markup-text :markup-type)
-
-
-;; 簡易記法、章立て切り分け
+;; EPUB簡易記法
+; 簡単なマークアップで目次を切り分ける
 (defmethod cut-by-chapter :easy-markup
-  "簡単なマークアップで目次を切り分ける"
   [easy-type]
-  (let [text (:text easy-type)]
-    (for [sec (.split text (:chapter meta-tag))]
-      (let [ncx  (.. sec (replaceAll "\n.*" "\n") trim)
-            text (.. sec (replaceFirst "^[^\n]*\n" ""))]
-        {:ncx (:title easy-markup), :text text}))))
+  (for [chap (. (:text easy-type) split (:chapter meta-tag))]
+    (let [sec chap
+          title (.. sec (replaceAll "\n.*" "\n") trim)
+          text  (. sec (replaceFirst "^[^\n]*\n" ""))]  ; cut ncx string
+      {:title title, :text text})))
+
+(defmethod markup-text :easy-markup
+  [easy-type]
+  (let [text (escape-html (:text easy-type))
+        html (str "<b>" (:title easy-type) "</b>"
+                  (. text replaceAll "([^(<[^>]+>)\n]*)\n" "<p>$1</p>"))]
+    {:title (:title easy-type), :text html}))
 
 
-;; プレインテキスト用、章立て切り分け（切り分けない）
+
+;;; プレインテキスト用
+; プレインテキストをそのまま切り分けず返す
 (defmethod cut-by-chapter :plain
-  "プレインテキストをそのまま切り分けず返す "
   [plain-type]
-  (list {:ncx (:title plain) :text (:text plain)}))
+  (list {:title (:title plain-type) :text (:text plain-type)}))
+
+(defmethod markup-text :plain
+  [plain-type]
+  (let [text (escape-html (:text plain-type))]
+    {:title (:title plain-type), :text (. text replaceAll "\n" "<br/>")}))
 
 
-;; Markdown記法用、章立て切り分け
+
+;;; Markdown記法
+;; ファイルを開いてePubのページごとに切り分ける(<h*>で切り分ける)
 (defmethod cut-by-chapter :markdown
-  "ファイルを開いてePubのページごとに切り分ける(<h*>で切り分ける)"
   [md-type]
   (let [html (:text md-type)
         prelude (re-find #"(?si)^(.*?)(?=(?:<h\d>|$))" html)
@@ -136,17 +156,6 @@
                      {:ncx value :text text}))]
       sections))
 
-
-(defmethod markup-text :easy-markup
-  [easy-type]
-  (escape-html (:text easy-type)))
-
-(defmethod markup-text :plain
-  [plain-type]
-  (escape-html (:text plain-type)))
-
 (defmethod markup-text :markdown
   [md-type]
   (markdown->html (:text md-type)))
-
-
