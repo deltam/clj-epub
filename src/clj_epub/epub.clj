@@ -1,7 +1,6 @@
 (ns clj-epub.epub
-  "make epub metadata"
-  (:use [clojure.contrib.io :only (reader)]
-        [hiccup.core]
+  "make epub content & metadata"
+  (:use [hiccup.core]
         [clj-epub.markup])
   (:import [java.util UUID]
            [com.petebevin.markdown MarkdownProcessor]))
@@ -87,8 +86,6 @@
   "generate ePub file. args are epub filename, epub title of metadata, includes text files."
   [{output :output input-files :input title :title author :author marktype :markup}]
   (let [id       (generate-uuid)
-;        mfiles   (map #(ftext % ((markup-types marktype) (slurp %))) input-files) ; todo refactoring
-;        ptexts   (flatten (map #((slice-types marktype) (:name %) (:text %)) mfiles)) ; ePub page cut by files
         eptexts  (files->epub-texts marktype input-files)]
     {:mimetype    (mimetype)
      :meta-inf    (meta-inf)

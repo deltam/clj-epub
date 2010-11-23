@@ -1,6 +1,6 @@
 (ns clj-epub.markup
-  ""
-  (:use [hiccup.core])
+  "make EPUB text from some markuped text"
+  (:use [hiccup.core :only (html escape-html)])
   (:import [com.petebevin.markdown MarkdownProcessor]))
 
 
@@ -46,6 +46,7 @@
 
 
 (defn files->epub-texts
+  "ファイルの内容をEPUB用HTMLに変換して返す"
   [markup-type filenames]
   (let [chapters (flatten
                   (map #(cut-by-chapter {:markup markup-type :title % :text (slurp %)})
@@ -59,62 +60,16 @@
 
 
 
-;; 簡易記法タグ
-(def meta-tag
-;     {:chapter "!!"
-     {:chapter "[\\^\n]!!"
-      :title   "!title!"})
-
-(defn slice-easy-text
-  "簡単なマークアップで目次を切り分ける"
-  [_ text]
-  (for [sec (.split text (meta-tag :chapter))]
-    (let [ncx  (.. sec (replaceAll "\n.*" "\n") trim)
-          text (.. sec (replaceFirst "^[^\n]*\n" ""))]
-      {:ncx ncx, :text text})))
-
-
-(defn markdown->html
-  "Markdown記法で書かれたテキストをHTMLに変換し、それを返す"
-  [markdown]
-  (let [mp (MarkdownProcessor.)]
-    (.markdown mp markdown)))
-
-
-(defn slice-html
-  "ファイルを開いてePubのページごとに切り分ける(<h*>で切り分ける)"
-  [title html]
-  (let [prelude (re-find #"(?si)^(.*?)(?=(?:<h\d>|$))" html)
-        sections (for [section (re-seq #"(?si)<h(\d)>(.*?)</h\1>(.*?)(?=(?:<h\d>|\s*$))" html)]
-                   (let [[all level value text] section]
-                     {:ncx value :text text}))]
-;    (if prelude
-;      (cons {:ncx title :text (get prelude 1)} sections)
-      sections))
-
-
-(defn no-slice-text
-  "プレインテキストをそのまま切り分けず返す "
-  [title text]
-  (list {:ncx title :text text}))
-
-; 以下、マルチメソッドで切り替える
-; 修飾記法の切り替え
-(def markup-types
-     {:markdown markdown->html
-      :default  (fn [text] text)
-      :plain    (fn [text] text)})
-
-; ePub切り分け方法を切り替える
-(def slice-types
-     {:markdown slice-html
-      :default  slice-easy-text
-      :plain    no-slice-text})
-
-
+;;; Implementation multi method for some markup text
 
 
 ;; EPUB簡易記法
+
+; 簡易記法タグ
+(def meta-tag
+     {:chapter "[\\^\n]!!" ; !!
+      :title   "!title!"})
+
 ; 簡単なマークアップで目次を切り分ける
 (defmethod cut-by-chapter :easy-markup
   [easy-type]
@@ -133,7 +88,7 @@
 
 
 
-;;; プレインテキスト用
+;; プレインテキスト用
 ; プレインテキストをそのまま切り分けず返す
 (defmethod cut-by-chapter :plain
   [plain-type]
@@ -141,13 +96,14 @@
 
 (defmethod markup-text :plain
   [plain-type]
-  (let [text (escape-html (:text plain-type))]
-    {:title (:title plain-type), :text (. text replaceAll "\n" "<br/>")}))
+  (let [escape-text (escape-html (:text plain-type))
+        text (str "<pre>" escape-text "</pre>")]
+    {:title (:title plain-type), :text text}))
 
 
 
-;;; Markdown記法
-;; ファイルを開いてePubのページごとに切り分ける(<h*>で切り分ける)
+;; Markdown記法
+; ファイルを開いてePubのページごとに切り分ける(<h*>で切り分ける)
 (defmethod cut-by-chapter :markdown
   [md-type]
   (let [html (:text md-type)
@@ -156,6 +112,12 @@
                    (let [[all level value text] section]
                      {:title value :text text}))]
       sections))
+
+(defn markdown->html
+  "Markdown記法で書かれたテキストをHTMLに変換し、それを返す"
+  [markdown]
+  (let [mp (MarkdownProcessor.)]
+    (.markdown mp markdown)))
 
 (defmethod markup-text :markdown
   [md-type]

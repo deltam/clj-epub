@@ -6,7 +6,7 @@
 
 
 (defn- write-epub
-  ""
+  "write epub data to zip file"
   [zos epub]
   (stored zos (:mimetype epub))
   (doseq [key [:meta-inf :content-opf :toc-ncx]]
@@ -30,4 +30,3 @@
               zos (open-zipstream baos)]
     (write-epub zos epub)
     (.toByteArray baos)))
-
