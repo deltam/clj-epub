@@ -1,6 +1,8 @@
 (ns clj-epub.epub
   "make epub content & metadata"
-  (:use [hiccup.core]
+  (:use [clojure.contrib.seq :only (find-first indexed)]
+        [hiccup.core :only (html)]
+        [hiccup.page-helpers :only (doctype xml-declaration)]
         [clj-epub.markup])
   (:import [java.util UUID]
            [com.petebevin.markdown MarkdownProcessor]))
@@ -11,6 +13,11 @@
   []
   (str (UUID/randomUUID)))
 
+(defn- find-at
+  "return item's index in coll"
+  [item coll]
+  (first (find-first #(= item (last %))
+                     (indexed coll))))
 
 (defn- ftext [name text]
   "binding name and text"
@@ -25,66 +32,65 @@
 
 
 (defn meta-inf
-  "container.xml for ePub format"
+  "container.xml for EPUB format"
   []
   (ftext "META-INF/container.xml"
-         (str "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-              (html
-               [:container {:version "1.0" :xmlns "urn:oasis:names:tc:opendocument:xmlns:container"}
-                [:rootfiles
-                 [:rootfile {:full-path "OEBPS/content.opf" :media-type "application/oebps-package+xml"}]]]))))
+         (html
+          (xml-declaration "UTF-8")
+          [:container {:version "1.0" :xmlns "urn:oasis:names:tc:opendocument:xmlns:container"}
+           [:rootfiles
+            [:rootfile {:full-path "OEBPS/content.opf" :media-type "application/oebps-package+xml"}]]])))
 
 
 (defn content-opf
-  "content body & metadata(author, id, ...) on ePub format"
+  "content body & metadata(author, id, ...) on EPUB format"
   [title author id sections]
   (ftext "OEBPS/content.opf"
-         (str "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-              (html
-               [:package {:xmlns "http://www.idpf.org/2007/opf"
-                          :unique-identifier "BookID"
-                          :version "2.0"}
-                [:metadata {:xmlns:dc "http://purl.org/dc/elements/1.1/"
-                            :xmlns:opf "http://www.idpf.org/2007/opf"}
-                 [:dc:title title]
-                 [:dc:language "ja"]
-                 [:dc:creator author]
-                 [:dc:identifier {:id "BookID"} id]]
-                [:manifest
-                 [:item {:id "ncx" :href "toc.ncx" :media-type "application/x-dtbncx+xml"}]
-                 (for [s sections]
-                   [:item {:id (:ncx s) :href (:src s) :media-type "application/xhtml+xml"}])]
-                [:spine {:toc "ncx"}
-                 (for [s sections]
-                   [:itemref {:idref (:ncx s)}])]]))))
+         (html
+          (xml-declaration "UTF-8")
+          [:package {:xmlns "http://www.idpf.org/2007/opf"
+                     :unique-identifier "BookID"
+                     :version "2.0"}
+           [:metadata {:xmlns:dc "http://purl.org/dc/elements/1.1/"
+                       :xmlns:opf "http://www.idpf.org/2007/opf"}
+            [:dc:title title]
+            [:dc:language "ja"]
+            [:dc:creator author]
+            [:dc:identifier {:id "BookID"} id]]
+           [:manifest
+            [:item {:id "ncx" :href "toc.ncx" :media-type "application/x-dtbncx+xml"}]
+            (for [s sections]
+              [:item {:id (:ncx s) :href (:src s) :media-type "application/xhtml+xml"}])]
+           [:spine {:toc "ncx"}
+            (for [s sections]
+              [:itemref {:idref (:ncx s)}])]])))
 
 
 (defn toc-ncx
-  "index infomation on ePub format"
+  "index infomation on EPUB format"
   [id section_titles]
   (ftext "OEBPS/toc.ncx"
-         (str "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-              "<!DOCTYPE ncx PUBLIC \"-//NISO//DTD ncx 2005-1//EN\" \"http://www.daisy.org/z3986/2005/ncx-2005-1.dtd\">"
-              (html
-               [:ncx {:version "2005-1" :xmlns "http://www.daisy.org/z3986/2005/ncx/"}
-                [:head
-                 [:meta {:content id :name "dtb:uid"}]
-                 [:meta {:content "0" :name "dtb:totalPageCount"}]
-                 [:meta {:content "1" :name "dtb:depth"}]
-                 [:meta {:content "0" :name "dtb:maxPageNumber"}]]
-                [:navMap
-                 (for [sec section_titles]
-                   [:navPoint {:id (:ncx sec) :playOrder (str (inc (count (take-while #(not (= sec %)) section_titles))))}; todo
-                    [:navLabel
-                     [:text (:ncx sec)]]
-                    [:content {:src (:src sec)}]])
-                 ]]))))
-
+         (html
+          (xml-declaration "UTF-8")
+          "<!DOCTYPE ncx PUBLIC \"-//NISO//DTD ncx 2005-1//EN\" \"http://www.daisy.org/z3986/2005/ncx-2005-1.dtd\">"
+          [:ncx {:version "2005-1" :xmlns "http://www.daisy.org/z3986/2005/ncx/"}
+           [:head
+            [:meta {:content id :name "dtb:uid"}]
+            [:meta {:content "0" :name "dtb:totalPageCount"}]
+            [:meta {:content "1" :name "dtb:depth"}]
+            [:meta {:content "0" :name "dtb:maxPageNumber"}]]
+           [:navMap
+            (for [sec section_titles]
+              [:navPoint {:id (:ncx sec) :playOrder (str (inc (find-at sec section_titles)))}
+               [:navLabel
+                [:text (:label sec)]]
+               [:content {:src (:src sec)}]])
+            ]])))
 
 
 (defn text->epub
-  "generate ePub file. args are epub filename, epub title of metadata, includes text files."
-  [{output :output input-files :input title :title author :author marktype :markup}]
+  "generate EPUB data. args are epub title of metadata, includes text files."
+  [{input-files :input title :title author :author marktype :markup}]
   (let [id       (generate-uuid)
         eptexts  (files->epub-texts marktype input-files)]
     {:mimetype    (mimetype)

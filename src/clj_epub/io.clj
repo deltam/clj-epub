@@ -1,12 +1,11 @@
 (ns clj-epub.io
-  "input and output ePub files"
-  (:use [clojure.contrib.string :only (replace-re)]
-        [clj-epub epub zipf])
+  "input and output EPUB files"
+  (:use [clj-epub epub zipf])
   (:import [java.io ByteArrayOutputStream]))
 
 
 (defn- write-epub
-  "write epub data to zip file"
+  "write EPUB on zip file"
   [zos epub]
   (stored zos (:mimetype epub))
   (doseq [key [:meta-inf :content-opf :toc-ncx]]
@@ -17,7 +16,7 @@
 
 
 (defn epub->file
-  "output ePub file from apply info"
+  "output EPUB file from apply EPUB info"
   [epub filename]
   (with-open [zos (open-zipfile filename)]
     (write-epub zos epub)))
@@ -30,3 +29,4 @@
               zos (open-zipstream baos)]
     (write-epub zos epub)
     (.toByteArray baos)))
+

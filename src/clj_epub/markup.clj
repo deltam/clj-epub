@@ -1,13 +1,22 @@
 (ns clj-epub.markup
   "make EPUB text from some markuped text"
-  (:use [hiccup.core :only (html escape-html)])
+  (:use [hiccup.core :only (html escape-html)]
+        [hiccup.page-helpers :only (doctype xml-declaration)])
   (:import [com.petebevin.markdown MarkdownProcessor]))
 
 
-; 章立ての切り分け
+;; 章立ての切り分け
 (defmulti cut-by-chapter :markup)
-;  各記法による修飾
+;; 各記法による修飾
 (defmulti markup-text :markup)
+
+(defmethod cut-by-chapter :default
+  [{title :title text :text}]
+  {:title title, :text text})
+
+(defmethod markup-text :default
+  [{title :title text :text}]
+  {:title title, :text text})
 
 
 (defn normalize-text
@@ -21,26 +30,28 @@
 (defn text->xhtml
   "title,textをつなげたXHTMLを返す"
   [title text]
-  (str "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
-       "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n"
-       (html [:html {:xmlns "http://www.w3.org/1999/xhtml"}
-              [:head
-               [:title title]
-               [:meta {:http-equiv "Content-Type" :content "application/xhtml+xml; charset=utf-8"}]]
-              [:body (normalize-text text)]])))
+  (html
+   (xml-declaration "UTF-8")
+   (doctype :xhtml-transitional)
+   [:html {:xmlns "http://www.w3.org/1999/xhtml"}
+    [:head
+     [:title title]
+     [:meta {:http-equiv "Content-Type" :content "application/xhtml+xml; charset=utf-8"}]]
+    [:body (normalize-text text)]]))
 
 
 (defn epub-text
-  "ePubのページ構成要素を作成し、返す"
-  [title text]
-  {:ncx  title
-   :src  (str title ".html")
-   :name (str "OEBPS/" title ".html")
+  "EPUBのページ構成要素を作成し、返す"
+  [id title text]
+  {:label title
+   :ncx  id
+   :src  (str id ".html")
+   :name (str "OEBPS/" id ".html")
    :text (text->xhtml title text)})
 
 
 (defn get-epub-meta
-  "EPUBメタデータが埋めこまれている場合、それを返す"
+  "TODO: EPUBメタデータが埋めこまれている場合、それを返す"
   [markup-type text]
   {:title "" :author ""})
 
@@ -54,13 +65,9 @@
         markups (flatten
                  (map #(markup-text {:markup markup-type :title (:title %) :text (:text %)})
                       chapters))]
-    (for [t markups]
-      (epub-text (:title t) (:text t)))))
+    (map-indexed (fn [index chapter] (epub-text (str "chapter-" index) (:title chapter) (:text chapter)))
+                   markups)))
 
-
-
-
-;;; Implementation multi method for some markup text
 
 
 ;; EPUB簡易記法
@@ -72,46 +79,28 @@
 
 ; 簡単なマークアップで目次を切り分ける
 (defmethod cut-by-chapter :easy-markup
-  [easy-type]
-  (for [chap (. (:text easy-type) split (:chapter meta-tag))]
-    (let [sec chap
-          title (.. sec (replaceAll "\n.*" "\n") trim)
-          text  (. sec (replaceFirst "^[^\n]*\n" ""))]  ; cut ncx string
-      {:title title, :text text})))
+  [{title :title text :text}]
+  (for [section (re-seq #"(?si)!!\s*(.*?)\n(.*?)(?=(?:!!|\s*$))" text)]
+    (let [[all value body] section]
+      {:title value, :text body})))
 
 (defmethod markup-text :easy-markup
-  [easy-type]
-  (let [text (escape-html (:text easy-type))
-        html (str "<b>" (:title easy-type) "</b>"
-                  (. text replaceAll "([^(<[^>]+>)\n]*)\n" "<p>$1</p>"))]
-    {:title (:title easy-type), :text html}))
+  [{title :title text :text}]
+  (let [html (str "<b>" title "</b>"
+                  (. text replaceAll "([^(<[^>]+>)\n]*)\n*" "<p>$1</p>"))]
+    {:title title, :text html}))
 
 
 
 ;; プレインテキスト用
-; プレインテキストをそのまま切り分けず返す
-(defmethod cut-by-chapter :plain
-  [plain-type]
-  (list {:title (:title plain-type) :text (:text plain-type)}))
 
 (defmethod markup-text :plain
-  [plain-type]
-  (let [escape-text (escape-html (:text plain-type))
-        text (str "<pre>" escape-text "</pre>")]
-    {:title (:title plain-type), :text text}))
+  [{title :title text :text}]
+  {:title title, :text (str "<pre>" (escape-html text) "</pre>")})
 
 
 
 ;; Markdown記法
-; ファイルを開いてePubのページごとに切り分ける(<h*>で切り分ける)
-(defmethod cut-by-chapter :markdown
-  [md-type]
-  (let [html (:text md-type)
-        prelude (re-find #"(?si)^(.*?)(?=(?:<h\d>|$))" html)
-        sections (for [section (re-seq #"(?si)<h(\d)>(.*?)</h\1>(.*?)(?=(?:<h\d>|\s*$))" html)]
-                   (let [[all level value text] section]
-                     {:title value :text text}))]
-      sections))
 
 (defn markdown->html
   "Markdown記法で書かれたテキストをHTMLに変換し、それを返す"
@@ -119,6 +108,10 @@
   (let [mp (MarkdownProcessor.)]
     (.markdown mp markdown)))
 
-(defmethod markup-text :markdown
-  [md-type]
-  (markdown->html (:text md-type)))
+; HTMLに変換してから章ごとに切り分け
+(defmethod cut-by-chapter :markdown
+  [{title :title text :text}]
+  (let [html (markdown->html text)]
+    (for [section (re-seq #"(?si)<h(\d)>(.*?)</h\1>(.*?)(?=(?:<h\d>|\s*$))" html)]
+      (let [[all level value body] section]
+        {:title value, :text all}))))
