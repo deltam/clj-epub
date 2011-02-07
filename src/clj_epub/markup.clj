@@ -5,18 +5,21 @@
   (:import [com.petebevin.markdown MarkdownProcessor]))
 
 
+
+(defrecord Chapter [title text markup])
+
 ;; 章立ての切り分け
 (defmulti cut-by-chapter :markup)
 ;; 各記法による修飾
 (defmulti markup-text :markup)
 
 (defmethod cut-by-chapter :default
-  [{title :title text :text}]
-  {:title title, :text text})
+  [{title :title text :text markup :markup}]
+  (Chapter. title, text, markup))
 
 (defmethod markup-text :default
-  [{title :title text :text}]
-  {:title title, :text text})
+  [{title :title text :text markup :markup}]
+  (Chapter. title, text, markup))
 
 
 (defn normalize-text
@@ -29,7 +32,7 @@
 
 (defn text->xhtml
   "title,textをつなげたXHTMLを返す"
-  [title text]
+  [{title :title text :text}]
   (html
    (xml-declaration "UTF-8")
    (doctype :xhtml-transitional)
@@ -42,30 +45,22 @@
 
 (defn epub-text
   "EPUBのページ構成要素を作成し、返す"
-  [id title text]
-  {:label title
+  [id chapter]
+  {:label (:title chapter)
    :ncx  id
    :src  (str id ".html")
    :name (str "OEBPS/" id ".html")
-   :text (text->xhtml title text)})
-
-
-(defn get-epub-meta
-  "TODO: EPUBメタデータが埋めこまれている場合、それを返す"
-  [markup-type text]
-  {:title "" :author ""})
+   :text (text->xhtml chapter)})
 
 
 (defn files->epub-texts
   "ファイルの内容をEPUB用HTMLに変換して返す"
   [markup-type filenames]
-  (let [chapters (flatten
-                  (map #(cut-by-chapter {:markup markup-type :title % :text (slurp %)})
-                       filenames))
-        markups (flatten
-                 (map #(markup-text {:markup markup-type :title (:title %) :text (:text %)})
-                      chapters))]
-    (map-indexed (fn [index chapter] (epub-text (str "chapter-" index) (:title chapter) (:text chapter)))
+  (let [map-flatten (fn [f coll] (flatten (map f coll)))
+        files    (map #(Chapter. %, (slurp %), markup-type) filenames)
+        chapters (map-flatten cut-by-chapter files)
+        markups  (map-flatten markup-text    chapters)]
+    (map-indexed (fn [index chapter] (epub-text (str "chapter-" index) chapter))
                    markups)))
 
 
@@ -82,13 +77,13 @@
   [{title :title text :text}]
   (for [section (re-seq #"(?si)!!\s*(.*?)\n(.*?)(?=(?:!!|\s*$))" text)]
     (let [[all value body] section]
-      {:title value, :text body})))
+      (Chapter. value, body, :easy-markup))))
 
 (defmethod markup-text :easy-markup
   [{title :title text :text}]
   (let [html (str "<b>" title "</b>"
                   (. text replaceAll "([^(<[^>]+>)\n]*)\n*" "<p>$1</p>"))]
-    {:title title, :text html}))
+    (Chapter. title, html, nil)))
 
 
 
@@ -96,7 +91,7 @@
 
 (defmethod markup-text :plain
   [{title :title text :text}]
-  {:title title, :text (str "<pre>" (escape-html text) "</pre>")})
+  (Chapter. title, (str "<pre>" (escape-html text) "</pre>"), nil))
 
 
 
@@ -114,4 +109,4 @@
   (let [html (markdown->html text)]
     (for [section (re-seq #"(?si)<h(\d)>(.*?)</h\1>(.*?)(?=(?:<h\d>|\s*$))" html)]
       (let [[all level value body] section]
-        {:title value, :text all}))))
+        (Chapter. value, all, :markdown)))))

@@ -1,5 +1,5 @@
 (ns clj-epub.epub
-  "make epub content & metadata"
+  "making epub content & metadata"
   (:use [clojure.contrib.seq :only (find-first indexed)]
         [hiccup.core :only (html)]
         [hiccup.page-helpers :only (doctype xml-declaration)]
@@ -8,7 +8,7 @@
            [com.petebevin.markdown MarkdownProcessor]))
 
 
-(defn- generate-uuid
+(defn generate-uuid
   "generate uuid for ePub dc:identifier(BookID)"
   []
   (str (UUID/randomUUID)))
@@ -86,15 +86,3 @@
                 [:text (:label sec)]]
                [:content {:src (:src sec)}]])
             ]])))
-
-
-(defn text->epub
-  "generate EPUB data. args are epub title of metadata, includes text files."
-  [{input-files :input title :title author :author marktype :markup}]
-  (let [id       (generate-uuid)
-        eptexts  (files->epub-texts marktype input-files)]
-    {:mimetype    (mimetype)
-     :meta-inf    (meta-inf)
-     :content-opf (content-opf title (or author "Nobody") id eptexts)
-     :toc-ncx     (toc-ncx id eptexts)
-     :html        eptexts}))
