@@ -5,4 +5,5 @@
                  [org.clojure/clojure-contrib "1.2.0"]
                  [hiccup "0.3.0"]
                  [org.markdownj/markdownj "0.3.0-1.0.2b4"]]
+  :dev-dependencies [[swank-clojure "1.2.1"]]
   :repositories {"markdownj" "http://scala-tools.org/repo-releases"})

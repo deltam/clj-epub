@@ -23,6 +23,3 @@
 (deftest test-toc-ncx
   (is (= "OEBPS/toc.ncx" (:name (toc-ncx "test" ["test"]))))
 )
-
-(deftest test-text->epub
-  (is false))
