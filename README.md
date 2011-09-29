@@ -23,13 +23,16 @@ Add to your `project.clj`
                    ...]
 
 
-## Tutorial
-
-Fix ME
-
 ## Usage
 
-Fix ME
+Convert Markdown text to EPUB on repl.
+
+    user> (use 'clj-epub.core)
+    nil
+    user> (def epub (text->epub {:inputs ["README.md"] :title "README.md" :author "deltam" :markup :markdown}))
+    #'user/epub
+    user> (epub->file epub "test.epub")
+
 
 ## License
 
