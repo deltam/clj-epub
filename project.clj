@@ -1,4 +1,4 @@
-(defproject clj-epub "0.1.0-alpha"
+(defproject clj-epub "0.1.0"
   :description "Library for generate EPUB, on Clojure"
   :url "http://github.com/deltam/clj-epub"
   :dependencies [[org.clojure/clojure "1.2.0"]

@@ -1,7 +1,14 @@
 (ns clj-epub.core
   "input and output EPUB files"
   (:use [clj-epub epub zipf markup])
-  (:import [java.io ByteArrayOutputStream]))
+  (:import [java.io ByteArrayOutputStream]
+           [java.util UUID]))
+
+
+(defn generate-uuid
+  "generate uuid for OPF element dc:identifier(BookID)"
+  []
+  (str (UUID/randomUUID)))
 
 
 (defn- write-epub
@@ -16,19 +23,23 @@
 
 
 (defn text->epub
-  "generate EPUB data. args are epub title of metadata, includes text files."
-  [{input-files :input title :title author :author markup-type :markup book-id :id}]
-  (let [id       (or book-id (generate-uuid))
-        eptexts  (files->epub-texts markup-type input-files)]
+  "Generate EPUB data. Args are epub title of metadata, includes text files."
+  [{input-files :inputs title :title author :author markup-type :markup book-id :id lang :language}]
+  (let [eptexts  (files->epub-texts markup-type input-files)
+        metadata {:title    title
+                  :author   (or author "Nobody")
+                  :id       (or book-id (generate-uuid))
+                  :sections eptexts
+                  :language (or lang "ja")}]
     {:mimetype    (mimetype)
      :meta-inf    (meta-inf)
-     :content-opf (content-opf title (or author "Nobody") id eptexts)
-     :toc-ncx     (toc-ncx id eptexts)
+     :content-opf (content-opf metadata)
+     :toc-ncx     (toc-ncx (:id metadata) eptexts)
      :html        eptexts}))
 
 
 (defn epub->file
-  "output EPUB file from apply EPUB info"
+  "Output EPUB file from apply EPUB info"
   [epub filename]
   (with-open [zos (open-zipfile filename)]
     (write-epub zos epub)))
