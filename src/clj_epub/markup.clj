@@ -23,7 +23,7 @@
 
 
 (defn normalize-text
-  "テキストからePub表示に不都合なHTMLタグ、改行を取り除く"
+  "テキストからEPUB表示に不都合なHTMLタグ、改行を取り除く"
   [text]
   (.. text
       (replaceAll "<br>" "<br/>")

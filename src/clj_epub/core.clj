@@ -5,14 +5,22 @@
            [java.util UUID]))
 
 
+(def default-values
+     "Default EPUB metadata"
+     {:title "Untitled"
+      :author "Nobody"
+      :book-id generate-uuid
+      :language :en})
+
+
 (defn generate-uuid
-  "generate uuid for OPF element dc:identifier(BookID)"
+  "Generate uuid for OPF element dc:identifier(BookID)"
   []
   (str (UUID/randomUUID)))
 
 
 (defn- write-epub
-  "write EPUB on zip file"
+  "Write EPUB on zip file"
   [zos epub]
   (stored zos (:mimetype epub))
   (doseq [key [:meta-inf :content-opf :toc-ncx]]
@@ -26,11 +34,11 @@
   "Generate EPUB data. Args are epub title of metadata, includes text files."
   [{input-files :inputs title :title author :author markup-type :markup book-id :id lang :language}]
   (let [eptexts  (files->epub-texts markup-type input-files)
-        metadata {:title    title
-                  :author   (or author "Nobody")
-                  :id       (or book-id (generate-uuid))
+        metadata {:title    (or title (:title default-values))
+                  :author   (or author (:author default-values))
+                  :id       (or book-id (:book-id default-values))
                   :sections eptexts
-                  :language (or lang "ja")}]
+                  :language (or lang (:lang default-values))}]
     {:mimetype    (mimetype)
      :meta-inf    (meta-inf)
      :content-opf (content-opf metadata)
@@ -46,7 +54,7 @@
 
 
 (defn epub->byte
-  "output EPUB bytes"
+  "Output EPUB byte array"
   [epub]
   (with-open [baos (ByteArrayOutputStream.)
               zos (open-zipstream baos)]

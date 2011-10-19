@@ -13,12 +13,12 @@
                      (indexed coll))))
 
 (defn- ftext [name text]
-  "binding name and text"
+  "Binding name and text"
   {:name name :text text})
 
 
 (defn mimetype
-  "body of mimetype file for EPUB format"
+  "Body of mimetype file for EPUB format"
   []
   (ftext "mimetype"
          "application/epub+zip"))
@@ -36,14 +36,14 @@
 
 
 (defn content-opf
-  "content body & metadata(author, id, ...) on EPUB format"
+  "Content body & metadata(author, id, ...) on EPUB format"
   [metadata-map]
-  (let [or-set   (fn [key default-value] (or (key metadata-map) default-value))
-        title    (or-set :title    "Untitled")
-        author   (or-set :author   "Nobody")
-        id       (or-set :id       nil)
-        lang     (or-set :language "en")
-        sections (or-set :sections nil)]
+;  (let [or-set   (fn [key default-value] (or (key metadata-map) default-value))
+;        title    (or-set :title    "Untitled")
+;        author   (or-set :author   "Nobody")
+;        id       (or-set :id       nil)
+;        lang     (or-set :language "en")
+;        sections (or-set :sections nil)]
     (ftext "OEBPS/content.opf"
            (html
             (xml-declaration "UTF-8")
@@ -62,7 +62,8 @@
                 [:item {:id (:ncx s) :href (:src s) :media-type "application/xhtml+xml"}])]
              [:spine {:toc "ncx"}
               (for [s sections]
-                [:itemref {:idref (:ncx s)}])]]))))
+                [:itemref {:idref (:ncx s)}])]])))
+;)
 
 
 (defn toc-ncx
