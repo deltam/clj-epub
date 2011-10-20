@@ -5,18 +5,18 @@
            [java.util UUID]))
 
 
-(def default-values
-     "Default EPUB metadata"
-     {:title "Untitled"
-      :author "Nobody"
-      :book-id generate-uuid
-      :language :en})
-
-
 (defn generate-uuid
   "Generate uuid for OPF element dc:identifier(BookID)"
   []
   (str (UUID/randomUUID)))
+
+
+; Default EPUB metadata
+(def default-values
+     {:title "Untitled"
+      :author "Nobody"
+      :book-id generate-uuid
+      :language :en})
 
 
 (defn- write-epub

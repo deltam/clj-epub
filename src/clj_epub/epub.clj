@@ -44,6 +44,11 @@
 ;        id       (or-set :id       nil)
 ;        lang     (or-set :language "en")
 ;        sections (or-set :sections nil)]
+  (let [title    (:title metadata-map)
+        author   (:author metadata-map)
+        id       (:id metadata-map)
+        lang     (:language metadata-map)
+        sections (:sections metadata-map)]
     (ftext "OEBPS/content.opf"
            (html
             (xml-declaration "UTF-8")
@@ -62,8 +67,7 @@
                 [:item {:id (:ncx s) :href (:src s) :media-type "application/xhtml+xml"}])]
              [:spine {:toc "ncx"}
               (for [s sections]
-                [:itemref {:idref (:ncx s)}])]])))
-;)
+                [:itemref {:idref (:ncx s)}])]]))))
 
 
 (defn toc-ncx
@@ -79,6 +83,9 @@
             [:meta {:content "0" :name "dtb:totalPageCount"}]
             [:meta {:content "1" :name "dtb:depth"}]
             [:meta {:content "0" :name "dtb:maxPageNumber"}]]
+           ;; dummy
+           [:docTitle
+            [:text "dummy"]]        
            [:navMap
             (for [sec section_titles]
               [:navPoint {:id (:ncx sec) :playOrder (str (inc (find-at sec section_titles)))}
