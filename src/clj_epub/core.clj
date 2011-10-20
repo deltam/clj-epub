@@ -1,6 +1,7 @@
 (ns clj-epub.core
   "input and output EPUB files"
-  (:use [clj-epub epub zipf markup])
+  (:use [clj-epub epub zipf markup]
+        [clojure.java.io :only (file)])
   (:import [java.io ByteArrayOutputStream]
            [java.util UUID]))
 
@@ -16,7 +17,7 @@
      {:title "Untitled"
       :author "Nobody"
       :book-id generate-uuid
-      :language :en})
+      :language "en"})
 
 
 (defn- write-epub
@@ -47,10 +48,11 @@
 
 
 (defn epub->file
-  "Output EPUB file from apply EPUB info"
+  "Output EPUB file from apply EPUB info. Return java.io.File of EPUB file."
   [epub filename]
   (with-open [zos (open-zipfile filename)]
-    (write-epub zos epub)))
+    (write-epub zos epub))
+  (file filename))
 
 
 (defn epub->byte

@@ -71,7 +71,7 @@
 
 
 (defn toc-ncx
-  "index infomation on EPUB format"
+  "Index infomation on EPUB format"
   [book-id section_titles]
   (ftext "OEBPS/toc.ncx"
          (html

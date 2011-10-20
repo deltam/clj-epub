@@ -9,4 +9,5 @@
                      [swank-clojure "1.2.1"]
 ;                     [lein-clojars "0.7.0"]
                      ]
+  :test-resources "test-resources"
   :repositories {"markdownj" "http://scala-tools.org/repo-releases"})

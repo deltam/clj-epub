@@ -45,7 +45,7 @@
 
 (defn epub-text
   "EPUBのページ構成要素を作成し、返す"
-  [id chapter]
+  [id ^Chapter chapter]
   {:label (:title chapter)
    :ncx  id
    :src  (str id ".html")
@@ -59,9 +59,9 @@
   (let [map-flatten (fn [f coll] (flatten (map f coll)))
         files    (map #(Chapter. %, (slurp %), markup-type) filenames)
         chapters (map-flatten cut-by-chapter files)
-        markups  (map-flatten markup-text    chapters)]
+        markuped (map-flatten markup-text    chapters)]
     (map-indexed (fn [index chapter] (epub-text (str "chapter-" index) chapter))
-                   markups)))
+                   markuped)))
 
 
 
