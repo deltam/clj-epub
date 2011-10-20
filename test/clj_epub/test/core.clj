@@ -21,9 +21,11 @@
   (let [epub (text->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language "en" :id "test-book-id"})
         epub-file (epub->file epub "test.epub")]
     (is (not (nil? epub-file)))
-    (is (true? (.validate (EpubCheck. epub-file)))))
+    (is (true? (.validate (EpubCheck. epub-file))))
+    (.delete epub-file))
   (let [epub (text->epub {:inputs ["test-resources/hello.txt"] :markup :plain})
         epub-file (epub->file epub "test.epub")]
     (is (not (nil? epub-file)))
-    (is (true? (.validate (EpubCheck. epub-file)))))
-    )
+    (is (true? (.validate (EpubCheck. epub-file))))
+    (.delete epub-file))
+  )
