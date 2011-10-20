@@ -16,13 +16,6 @@
 (deftest test-markdown->html ; todo write more
   (is (= "<h1>test</h1>\n" (markdown->html "# test\n"))))
 
-;(deftest test-slice-html
-;  (is (= '({:ncx "title1" :text "text1\n"} {:ncx "title2" :text "text2"})
-;         (slice-html "title" "<h1>title1</h1>text1\n<h2>title2</h2>text2"))))
-
-;(deftest test-no-slice-text
-;  (is (= '({:ncx "title" :text "bodytext"}) (no-slice-text "title" "bodytext"))))
-
 (deftest test-text->xhtml
   (is (= (str "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
 ;              "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n"
@@ -35,6 +28,11 @@
               "<body>body</body></html>")
          (text->xhtml {:title "title" :text "body"}))))
 
-;(deftest test-epub-text
+(deftest test-epub-text
+  (is false))
 
-;(deftest test-text-epub
+(deftest test-files->epub-texts
+  (is false))
+
+
+;; todo test markup type

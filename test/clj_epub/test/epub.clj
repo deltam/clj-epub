@@ -3,23 +3,31 @@
   (:use [clojure.test]))
 
 
-(deftest test-mimetype
-  (is (false? (nil? mimetype)))
-  (is (= "mimetype" (:name (mimetype))))
-  (is (= "application/epub+zip" (:text (mimetype)))))
-
-(deftest test-meta-inf
-  (is (false? (nil? meta-inf)))
-  (is (= "META-INF/container.xml" (:name (meta-inf))))
-;  (is (= "" (:text (meta-inf))))) ;todo
-  )
-
 (deftest test-content-opf
-  (is (false? (nil? (content-opf "test" "test" "test" ["test"]))))
-  (is (= "OEBPS/content.opf" (:name (content-opf "test" "test" "test" ["test"]))))
-;  (is (= "" (:text (content-opf "test" "test" "test" ["test"])))))
-  )
+  (let [test-metadata {:title "test-title"
+                       :author "Tester"
+                       :id "test-book-id"
+                       :language "test-lang"
+                       :sectons nil}
+        test-opf (content-opf test-metadata)]
+    (is (not (nil? test-opf)))
+    (is (= "OEBPS/content.opf" (:name test-opf)))
+    (is (not (nil? (re-find #"test-title" (:text test-opf)))))
+    (is (not (nil? (re-find #"Tester" (:text test-opf)))))
+    (is (not (nil? (re-find #"test-book-id" (:text test-opf)))))
+    (is (not (nil? (re-find #"test-lang" (:text test-opf)))))
+    ))
 
 (deftest test-toc-ncx
-  (is (= "OEBPS/toc.ncx" (:name (toc-ncx "test" ["test"]))))
-)
+  (let [sections [{:label "test section"
+                   :ncx "test-id"
+                   :src "test-id.html"
+                   :name "OEBPS/test-id.html"
+                   :text "test text."}]
+        test-ncx (toc-ncx "test-book-id" sections)]
+    (is (= "OEBPS/toc.ncx" (:name test-ncx)))
+    (is (not (nil? (re-find #"test-book-id" (:text test-ncx)))))
+    (is (not (nil? (re-find #"test section" (:text test-ncx)))))    
+    (is (not (nil? (re-find #"test-id.html" (:text test-ncx)))))
+;    (is (not (nil? (re-find #"OEBPS/test-id.html" (:text test-ncx)))))
+    ))
