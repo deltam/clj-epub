@@ -16,7 +16,7 @@
      default-metadata
      {:title "Untitled"
       :author "Nobody"
-      :book-id generate-uuid
+      :book-id generate-uuid ; random
       :language "en"})
 
 
@@ -26,25 +26,27 @@
   (stored zos (:mimetype epub))
   (doseq [key [:meta-inf :content-opf :toc-ncx]]
     (deflated zos (key epub)))
-  (doseq [t (:html epub)]
+  (doseq [t (:sections epub)]
     (deflated zos t))
   (.flush zos))
 
 
-(defn text->epub
+;(defn str->epub
+
+(defn textfile->epub
   "Generate EPUB data. Args are epub title of metadata, includes text files."
   [{input-files :inputs title :title author :author markup-type :markup book-id :id lang :language}]
   (let [sections (files->sections input-files markup-type)
-        metadata {:title    (or title   (:title   default-metadata))
-                  :author   (or author  (:author  default-metadata))
-                  :id       (or book-id (:book-id default-metadata))
-                  :sections sections
-                  :language (or lang    (:lang     default-metadata))}]
+        metadata {:title    (or title   (:title    default-metadata))
+                  :author   (or author  (:author   default-metadata))
+                  :id       (or book-id (:book-id  default-metadata))
+                  :language (or lang    (:language default-metadata))
+                  :sections sections}]
     {:mimetype    (mimetype)
      :meta-inf    (meta-inf)
      :content-opf (content-opf metadata)
      :toc-ncx     (toc-ncx (:id metadata) sections)
-     :html        sections}))
+     :sections    sections}))
 
 
 (defn epub->file
@@ -67,10 +69,44 @@
 
 ;;; EPUB Generation DSL
 
+(defn to-sections
+  "Return EPUB Section from String, File. 
+    Example:
+    (def sec [{:chapter \"chapter1\" :text \"first . \"}
+           {:chapter \"chapter2\" :html \"<b>write html</b>\"}
+           {:chapter \"make by file\" :file \"samples/hello.md\" :type :markdown}
+           {:chapter \"make by plain text file\" :file \"samples/hello.txt\" :type :plain}])"
+  [section-data]
+  (reduce concat-sections
+          (map #(let [type (or (:type %) :plain)]
+                  (if (:text %) (text->sections (:chapter %) (:text %) type)
+                      (if (:file %) (text->sections (:chapter %) (slurp (:file %)) type)
+                          (if (:html %) (text->sections (:chapter %) (:html %) type)))))
+               section-data)))
+
+(defn make-epub
+  ""
+  [body]
+  (let [sections (to-sections (:sections body))
+        metadata {:title (:title body)
+                  :author (:author body)
+                  :book-id (if (= :random (:book-id body))
+                             (generate-uuid)
+                             (:book-id body))
+                  :language (:language body)}]
+    {:mimetype    (mimetype)
+     :meta-inf    (meta-inf)
+     :content-opf (content-opf metadata)
+     :toc-ncx     (toc-ncx (:id metadata) sections)
+     :sections    sections}))
+                  
+                  
+
 ;    (defepub my-epub
-;      (:title "my-epub"
+;      :title "my-epub"
 ;       :author "deltam"
 ;       :book-id :random
+;       :language "en"
 ;       :sections [
 ;         {:chapter "chapter1"
 ;          :text "first chapter"}

@@ -28,11 +28,19 @@
               "<body>body</body></html>")
          (text->xhtml {:title "title" :text "body"}))))
 
-(deftest test-epub-text
+(deftest test-make-sections
   (is false))
 
-(deftest test-files->epub-texts
+(deftest test-text->sections
   (is false))
 
+(deftest test-files->sections
+  (is false))
+
+(deftest test-concat-sections
+  (is false))
 
 ;; todo test markup type
+
+
+

@@ -2,6 +2,6 @@
   (:use [clj-epub.zipf] :reload-all)
   (:use [clojure.test]))
 
-(deftest replace-me ;; FIXME: write
-  (is false))
+;(deftest replace-me ;; FIXME: write
+;  (is false))
 

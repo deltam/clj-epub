@@ -9,28 +9,36 @@
 ;user=> (.validate (EpubCheck. (java.io.File. "test.epub")))true
 
 
-(deftest test-text->epub
-  (let [epub (text->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language :en :id "test-book-id"})]
+(deftest test-textfile->epub
+  (let [epub (textfile->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language :en :id "test-book-id"})]
     (is (not (nil? epub)))
     (is (not (nil? (:mimetype epub))))
     (is (not (nil? (:meta-inf epub))))
     (is (not (nil? (:content-opf epub))))
-    (is (not (nil? (:html epub))))))
+    (is (not (nil? (:sections epub))))))
 
 (deftest test-epub->file
-  (let [epub (text->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language "en" :id "test-book-id"})
+  (let [epub (textfile->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language "en" :id "test-book-id"})
         epub-file (epub->file epub "test.epub")]
     (is (not (nil? epub-file)))
     (is (true? (.validate (EpubCheck. epub-file))))
     (.delete epub-file))
-  (let [epub (text->epub {:inputs ["test-resources/hello.txt"] :markup :plain})
+  (let [epub (textfile->epub {:inputs ["test-resources/hello.txt"] :markup :plain})
         epub-file (epub->file epub "test.epub")]
     (is (not (nil? epub-file)))
     (is (true? (.validate (EpubCheck. epub-file))))
     (.delete epub-file))
-  (let [epub (text->epub {:inputs ["test-resources/hello.md"] :title "hello(markdown)" :author "Tester" :markup :markdown :language "en" :id "test-book-id"})
+  (let [epub (textfile->epub {:inputs ["test-resources/hello.md"] :title "hello(markdown)" :author "Tester" :markup :markdown :language "en" :id "test-book-id"})
         epub-file (epub->file epub "test.epub")]
     (is (not (nil? epub-file)))
     (is (true? (.validate (EpubCheck. epub-file))))
     (.delete epub-file))
   )
+
+
+(deftest test-to-sections
+  (is false))
+
+
+(deftest test-make-epub
+  (is false))

@@ -42,7 +42,7 @@
      [:meta {:http-equiv "Content-Type" :content "application/xhtml+xml; charset=utf-8"}]]
     [:body (normalize-text text)]]))
 
-
+;; EPUB Section
 (defrecord Section [label ncx src name text])
 
 (defn make-section
