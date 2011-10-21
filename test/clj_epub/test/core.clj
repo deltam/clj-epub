@@ -28,4 +28,9 @@
     (is (not (nil? epub-file)))
     (is (true? (.validate (EpubCheck. epub-file))))
     (.delete epub-file))
+  (let [epub (text->epub {:inputs ["test-resources/hello.md"] :title "hello(markdown)" :author "Tester" :markup :markdown :language "en" :id "test-book-id"})
+        epub-file (epub->file epub "test.epub")]
+    (is (not (nil? epub-file)))
+    (is (true? (.validate (EpubCheck. epub-file))))
+    (.delete epub-file))
   )

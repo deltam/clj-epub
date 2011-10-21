@@ -12,8 +12,8 @@
   (str (UUID/randomUUID)))
 
 
-; Default EPUB metadata
-(def default-values
+(def #^{:doc "Default EPUB metadata."}
+     default-metadata
      {:title "Untitled"
       :author "Nobody"
       :book-id generate-uuid
@@ -34,21 +34,21 @@
 (defn text->epub
   "Generate EPUB data. Args are epub title of metadata, includes text files."
   [{input-files :inputs title :title author :author markup-type :markup book-id :id lang :language}]
-  (let [eptexts  (files->epub-texts markup-type input-files)
-        metadata {:title    (or title (:title default-values))
-                  :author   (or author (:author default-values))
-                  :id       (or book-id (:book-id default-values))
-                  :sections eptexts
-                  :language (or lang (:lang default-values))}]
+  (let [sections (files->sections input-files markup-type)
+        metadata {:title    (or title   (:title   default-metadata))
+                  :author   (or author  (:author  default-metadata))
+                  :id       (or book-id (:book-id default-metadata))
+                  :sections sections
+                  :language (or lang    (:lang     default-metadata))}]
     {:mimetype    (mimetype)
      :meta-inf    (meta-inf)
      :content-opf (content-opf metadata)
-     :toc-ncx     (toc-ncx (:id metadata) eptexts)
-     :html        eptexts}))
+     :toc-ncx     (toc-ncx (:id metadata) sections)
+     :html        sections}))
 
 
 (defn epub->file
-  "Output EPUB file from apply EPUB info. Return java.io.File of EPUB file."
+  "Return java.io.File of EPUB file. Output EPUB file from apply EPUB info."
   [epub filename]
   (with-open [zos (open-zipfile filename)]
     (write-epub zos epub))
@@ -63,3 +63,27 @@
     (write-epub zos epub)
     (.toByteArray baos)))
 
+
+
+;;; EPUB Generation DSL
+
+;    (defepub my-epub
+;      (:title "my-epub"
+;       :author "deltam"
+;       :book-id :random
+;       :sections [
+;         {:chapter "chapter1"
+;          :text "first chapter"}
+;         {:chapter "chapter2"
+;          :html "<b>write html</b>"}
+;         {:chapter "make by file"
+;          :file "./samples/README.md"
+;          :type :markdown}
+;         {:chapter "make by html"
+;          :file "./samples/test.html"
+;          :type :html}
+;         {:chapter "make by plain text"
+;          :file "./samples/test.txt"
+;          :type :plain}]
+;       :resources {"samples/test.gif" "samples/abc.css"}))
+;    (epub->file my-epub "my-epub.epub")

@@ -43,26 +43,46 @@
     [:body (normalize-text text)]]))
 
 
-(defn epub-text
-  "EPUBのページ構成要素を作成し、返す"
-  [id ^Chapter chapter]
-  {:label (:title chapter)
-   :ncx  id
-   :src  (str id ".html")
-   :name (str "OEBPS/" id ".html")
-   :text (text->xhtml chapter)})
+(defrecord Section [label ncx src name text])
+
+(defn make-section
+  "Return EPUB Section data."
+  ([id title html]
+     (Section. title
+               id
+               (str id ".html")
+               (str "OEBPS/" id ".html")
+               html))
+  ([id ^Chapter chapter]
+     (make-section id (:title chapter) (text->xhtml chapter))))
 
 
-(defn files->epub-texts
+(defn- map-flatten [f coll] (flatten (map f coll)))
+
+(defn text->sections
+  ""
+  [name text markup-type]
+  (let [text      (vector (Chapter. name text markup-type))
+        chapters  (map-flatten cut-by-chapter text)
+        markupped (map-flatten markup-text    chapters)]
+    (map-indexed (fn [index chapter] (make-section (str "chapter-" index) chapter))
+                   markupped)))
+
+(defn files->sections
   "ファイルの内容をEPUB用HTMLに変換して返す"
-  [markup-type filenames]
-  (let [map-flatten (fn [f coll] (flatten (map f coll)))
-        files    (map #(Chapter. %, (slurp %), markup-type) filenames)
-        chapters (map-flatten cut-by-chapter files)
-        markuped (map-flatten markup-text    chapters)]
-    (map-indexed (fn [index chapter] (epub-text (str "chapter-" index) chapter))
-                   markuped)))
+  [filenames markup-type]
+  (map-flatten #(text->sections % (slurp %) markup-type)
+               filenames))
 
+;;TODOあとでセクションを追加する場合、IDが連番にならない。ファイル名も被るから上書きされてしまう。
+;; 追加でセクションを生成し、合成する場合はどうするか？
+(defn concat-sections
+  ""
+  [sections-a sections-b]
+  (map-indexed (fn [index section] (make-section (str "chapter-" index)
+                                                 (:label section)
+                                                 (:text  section)))
+                 (concat sections-a sections-b)))
 
 
 ;; EPUB簡易記法
