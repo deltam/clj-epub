@@ -10,14 +10,17 @@
 
 
 (deftest test-textfile->epub
-  (let [epub (textfile->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language :en :id "test-book-id"})]
+  (let [epub (textfile->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language "en" :id "test-book-id"})]
     (is (not (nil? epub)))
-    (is (not (nil? (:mimetype epub))))
-    (is (not (nil? (:meta-inf epub))))
-    (is (not (nil? (:content-opf epub))))
-    (is (not (nil? (:toc-ncx epub))))
-    (is (not (nil? (:sections epub)))))
-    )
+    (is (not (nil? (:metadata epub))))
+    (is (= "hello(plain text)" (:title (:metadata epub))))
+    (is (= "Tester" (:author (:metadata epub))))
+    (is (= "en" (:language (:metadata epub))))
+    (is (= "test-book-id" (:id (:metadata epub))))
+    (is (not (nil? (:chapters epub))))
+    (is (= 1 (count (:chapters epub))))
+    (is (= "test-resources/hello.txt" (:title (first (:chapters epub)))))
+    ))
 
 (deftest test-epub->file
   (let [epub (textfile->epub {:inputs ["test-resources/hello.txt"] :title "hello(plain text)" :author "Tester" :markup :plain :language "en" :id "test-book-id"})
@@ -43,34 +46,30 @@
   (let [re (re-pattern (java.util.regex.Pattern/quote s))]
     (re-find re body)))
 
-(deftest test-to-sections
+(deftest test-to-chapters
   ; by plain text
-  (let [s1 (to-sections [{:chapter "test1" :text "hello" :type :plain}])
+  (let [s1 (to-chapters [{:chapter "test1" :text "hello" :type :plain}])
         s2 (first s1)]
     (is (= 1 (count s1)))
-    (is (= "test1" (:label s2))))
+    (is (= "test1" (:title s2))))
   ; by html
-  (let [s1 (to-sections [{:chapter "test2" :html "<b>hello<\b>"}])
+  (let [s1 (to-chapters [{:chapter "test2" :html "<b>hello<\b>"}])
         s2 (first s1)]
     (is (= 1 (count s1)))
-    (is (= "test2" (:label s2)))
+    (is (= "test2" (:title s2)))
     (is (str-find "<b>hello<\b>" (:text s2)))
     (is (not (str-find "<b>goodby<\b>" (:text s2)))))
   ; by file, markdown format
-  (let [s1 (to-sections [{:chapter "test3" :file "test-resources/hello.md" :type :markdown}])]
-    (is (= 3 (count s1)))
-    (is (= "chapter 1" (:label (nth s1 0))))
-    (is (= "chap 2"    (:label (nth s1 1))))
-    (is (= "end"       (:label (nth s1 2)))))
-  (let [s1 (to-sections [{:chapter "test1" :text "hello" :type :plain}
+  (let [s1 (to-chapters [{:chapter "test3" :file "test-resources/hello.md" :type :markdown}])]
+    (is (= 1 (count s1)))
+    (is (= "test3" (:title (first s1)))))
+  (let [s1 (to-chapters [{:chapter "test1" :text "hello" :type :plain}
                          {:chapter "test2" :html "<b>hello<\b>"}
                          {:chapter "test3" :file "test-resources/hello.md" :type :markdown}])]
-    (is (= 5 (count s1)))
-    (is (= "test1"     (:label (nth s1 0))))
-    (is (= "test2"     (:label (nth s1 1))))
-    (is (= "chapter 1" (:label (nth s1 2))))
-    (is (= "chap 2"    (:label (nth s1 3))))
-    (is (= "end"       (:label (nth s1 4))))
+    (is (= 3 (count s1)))
+    (is (= "test1" (:title (nth s1 0))))
+    (is (= "test2" (:title (nth s1 1))))
+    (is (= "test3" (:title (nth s1 2))))
     )
   )
 
@@ -79,7 +78,7 @@
                          :author "Tester"
                          :book-id :random
                          :language "en"
-                         :sections [{:chapter "test1"
+                         :chapters [{:chapter "test1"
                                      :text "first chapter"}
                                     {:chapter "html chapter"
                                      :html "<pre>test section</pre>"}
@@ -89,11 +88,12 @@
                                     ]})
         epub-file (epub->file epub "test.epub")]
     (is (not (nil? epub)))
-    (is (not (nil? (:mimetype epub))))
-    (is (not (nil? (:meta-inf epub))))
-    (is (not (nil? (:content-opf epub))))
-    (is (not (nil? (:toc-ncx epub))))
-    (is (not (nil? (:sections epub))))
+    (is (not (nil? (:metadata epub))))
+    (is (= "test title" (:title (:metadata epub))))
+    (is (= "Tester" (:author (:metadata epub))))
+    (is (= "en" (:language (:metadata epub))))
+    (is (not (nil? (:id (:metadata epub)))))
+    (is (not (nil? (:chapters epub))))
     (is (not (nil? epub-file)))
     (is (true? (.validate (EpubCheck. epub-file))))
 ;    (.delete epub-file)
