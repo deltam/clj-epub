@@ -5,8 +5,11 @@
   (:import [com.petebevin.markdown MarkdownProcessor]))
 
 
+;; Chapter text
+(defrecord Chapter [^String title, ^String text, ^clojure.lang.Keyword markup])
+;; EPUB Section
+(defrecord Section [label ncx src name text])
 
-(defrecord Chapter [title text markup])
 
 ;; 章立ての切り分け
 (defmulti cut-by-chapter :markup)
@@ -29,7 +32,6 @@
       (replaceAll "<br>" "<br/>")
       (replaceAll "<img([^>]*)>" "<img$1/>")))
 
-
 (defn text->xhtml
   "title,textをつなげたXHTMLを返す"
   [{title :title text :text}]
@@ -42,17 +44,14 @@
      [:meta {:http-equiv "Content-Type" :content "application/xhtml+xml; charset=utf-8"}]]
     [:body (normalize-text text)]]))
 
-;; EPUB Section
-(defrecord Section [label ncx src name text])
-
 (defn make-section
   "Return EPUB Section data."
-  ([id title html]
+  ([id title xhtml]
      (Section. title
                id
                (str id ".html")
                (str "OEBPS/" id ".html")
-               html))
+               xhtml))
   ([id ^Chapter chapter]
      (make-section id (:title chapter) (text->xhtml chapter))))
 
@@ -60,13 +59,15 @@
 (defn- map-flatten [f coll] (flatten (map f coll)))
 
 (defn text->sections
-  ""
-  [name text markup-type]
-  (let [text      (vector (Chapter. name text markup-type))
-        chapters  (map-flatten cut-by-chapter text)
-        markupped (map-flatten markup-text    chapters)]
-    (map-indexed (fn [index chapter] (make-section (str "chapter-" index) chapter))
-                   markupped)))
+  "テキストをセクションのベクタに変える。章を切り分けるマークアップが会った場合、それに応じてセクションも増える"
+  ([name text markup-type]
+     (let [text      (vector (Chapter. name text markup-type))
+           chapters  (map-flatten cut-by-chapter text)
+           markupped (map-flatten markup-text    chapters)]
+       (map-indexed (fn [index chapter] (make-section (str "chapter-" index) chapter))
+                    markupped)))
+  ([^Chapter chapter]
+     (text->sections (:title chapter) (:text chapter) (:markup chapter))))
 
 (defn files->sections
   "ファイルの内容をEPUB用HTMLに変換して返す"
@@ -85,7 +86,7 @@
                  (concat sections-a sections-b)))
 
 
-;; EPUB簡易記法
+;; EPUB easy markup
 
 ; 簡易記法タグ
 (def meta-tag
@@ -107,7 +108,7 @@
 
 
 
-;; プレインテキスト用
+;; Plain Text
 
 (defmethod markup-text :plain
   [{title :title text :text}]
@@ -115,7 +116,7 @@
 
 
 
-;; Markdown記法
+;; Markdown format
 
 (defn markdown->html
   "Markdown記法で書かれたテキストをHTMLに変換し、それを返す"

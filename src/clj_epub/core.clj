@@ -2,7 +2,8 @@
   "input and output EPUB files"
   (:use [clj-epub epub zipf markup]
         [clojure.java.io :only (file)])
-  (:import [java.io ByteArrayOutputStream]
+  (:import [clj-epub.markup Chapter Section]
+           [java.io ByteArrayOutputStream]
            [java.util UUID]))
 
 
@@ -16,7 +17,7 @@
      default-metadata
      {:title "Untitled"
       :author "Nobody"
-      :book-id generate-uuid ; random
+      :id (fn [] (generate-uuid)) ; random
       :language "en"})
 
 
@@ -36,26 +37,31 @@
 (defn textfile->epub
   "Generate EPUB data. Args are epub title of metadata, includes text files."
   [{input-files :inputs title :title author :author markup-type :markup book-id :id lang :language}]
-  (let [sections (files->sections input-files markup-type)
-        metadata {:title    (or title   (:title    default-metadata))
+  (let [metadata {:title    (or title   (:title    default-metadata))
                   :author   (or author  (:author   default-metadata))
-                  :id       (or book-id (:book-id  default-metadata))
-                  :language (or lang    (:language default-metadata))
-                  :sections sections}]
+                  :id       (or book-id ((:id  default-metadata)));; eval generate-uuid
+                  :language (or lang    (:language default-metadata))}
+        sections (files->sections input-files markup-type)
+        chapters (map #(Chapter. % (slurp %) markup-type) input-files)]
+    {:metadata metadata
+     :chapters chapters}))
+
+(defn gen-epub-files
+  ""
+  [epub]
+  (let [sections  (flatten (map #(text->sections %) (:chapters epub)))]
     {:mimetype    (mimetype)
      :meta-inf    (meta-inf)
-     :content-opf (content-opf metadata)
-     :toc-ncx     (toc-ncx (:id metadata) sections)
+     :content-opf (content-opf (:metadata epub) sections)
+     :toc-ncx     (toc-ncx (:id (:metadata epub)) (:title (:metadata epub)) sections)
      :sections    sections}))
-
 
 (defn epub->file
   "Return java.io.File of EPUB file. Output EPUB file from apply EPUB info."
   [epub filename]
   (with-open [zos (open-zipfile filename)]
-    (write-epub zos epub))
+    (write-epub zos (gen-epub-files epub)))
   (file filename))
-
 
 (defn epub->byte
   "Output EPUB byte array"
@@ -69,38 +75,42 @@
 
 ;;; EPUB Generation DSL
 
-(defn to-sections
-  "Return EPUB Section from String, File. 
+(defn to-chapters
+  "Return Chapter from String or File,
+   formatted Plain Text, Markdown, HTML.
     Example:
-    (def sec [{:chapter \"chapter1\" :text \"first . \"}
-           {:chapter \"chapter2\" :html \"<b>write html</b>\"}
-           {:chapter \"make by file\" :file \"samples/hello.md\" :type :markdown}
-           {:chapter \"make by plain text file\" :file \"samples/hello.txt\" :type :plain}])"
-  [section-data]
-  (reduce concat-sections
-          (map #(let [type (or (:type %) :plain)]
-                  (if (:text %) (text->sections (:chapter %) (:text %) type)
-                      (if (:file %) (text->sections (:chapter %) (slurp (:file %)) type)
-                          (if (:html %) (text->sections (:chapter %) (:html %) type)))))
-               section-data)))
+    (to-chapters [{:chapter \"chapter1\"
+                   :text \"first . \"}
+                  {:chapter \"chapter2\"
+                   :html \"<b>write html</b>\"}
+                  {:chapter \"make by file\"
+                   :file \"samples/hello.md\"
+                   :type :markdown}
+                  {:chapter \"make by plain text file\"
+                   :file \"samples/hello.txt\"
+                   :type :plain}])"
+  [source-data]
+  (flatten
+   (map #(let [chapter-by (fn [body] (Chapter. (:chapter %) body (:type %)))]
+           (cond
+            (:text %) (chapter-by (:text %))
+            (:file %) (chapter-by (slurp (:file %)))
+            (:html %) (chapter-by (:html %))))
+        source-data)))
 
 (defn make-epub
   ""
   [body]
-  (let [sections (to-sections (:sections body))
+  (let [chapters (to-chapters (:sections body))
         metadata {:title (:title body)
                   :author (:author body)
-                  :book-id (if (= :random (:book-id body))
+                  :id (if (= :random (:book-id body))
                              (generate-uuid)
                              (:book-id body))
                   :language (:language body)}]
-    {:mimetype    (mimetype)
-     :meta-inf    (meta-inf)
-     :content-opf (content-opf metadata)
-     :toc-ncx     (toc-ncx (:id metadata) sections)
-     :sections    sections}))
-                  
-                  
+    {:metadata metadata
+     :chapters chapters}))
+
 
 ;    (defepub my-epub
 ;      :title "my-epub"
@@ -121,5 +131,6 @@
 ;         {:chapter "make by plain text"
 ;          :file "./samples/test.txt"
 ;          :type :plain}]
-;       :resources {"samples/test.gif" "samples/abc.css"}))
+;       :resources {:files ["samples/test.gif" "samples/abc.css"]
+;                   :folder "resource"})
 ;    (epub->file my-epub "my-epub.epub")

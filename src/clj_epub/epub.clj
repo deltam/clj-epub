@@ -1,16 +1,10 @@
 (ns clj-epub.epub
   "making epub content & metadata"
-  (:use [clojure.contrib.seq :only (find-first indexed)]
+  (:use [clojure.contrib.seq :only (indexed)]
         [hiccup.core :only (html)]
         [hiccup.page-helpers :only (doctype xml-declaration)]
         [clj-epub.markup]))
 
-
-(defn- find-at
-  "return item's index in coll"
-  [item coll]
-  (first (find-first #(= item (last %))
-                     (indexed coll))))
 
 (defn- ftext [name text]
   "Binding name and text"
@@ -37,7 +31,7 @@
 
 (defn content-opf
   "Content body & metadata(author, id, ...) on EPUB format"
-  [metadata-map]
+  [metadata-map sections]
 ;  (let [or-set   (fn [key default-value] (or (key metadata-map) default-value))
 ;        title    (or-set :title    "Untitled")
 ;        author   (or-set :author   "Nobody")
@@ -47,8 +41,7 @@
   (let [title    (:title metadata-map)
         author   (:author metadata-map)
         id       (:id metadata-map)
-        lang     (:language metadata-map)
-        sections (:sections metadata-map)]
+        lang     (:language metadata-map)]
     (ftext "OEBPS/content.opf"
            (html
             (xml-declaration "UTF-8")
@@ -72,7 +65,7 @@
 
 (defn toc-ncx
   "Index infomation on EPUB format"
-  [book-id section_titles]
+  [book-id book-title sections]
   (ftext "OEBPS/toc.ncx"
          (html
           (xml-declaration "UTF-8")
@@ -81,15 +74,20 @@
            [:head
             [:meta {:content book-id :name "dtb:uid"}]
             [:meta {:content "0" :name "dtb:totalPageCount"}]
-            [:meta {:content "1" :name "dtb:depth"}]
+            [:meta {:content "0" :name "dtb:depth"}]
             [:meta {:content "0" :name "dtb:maxPageNumber"}]]
-           ;; dummy
            [:docTitle
-            [:text "dummy"]]        
+            [:text book-title]]
            [:navMap
-            (for [sec section_titles]
-              [:navPoint {:id (:ncx sec) :playOrder (str (inc (find-at sec section_titles)))}
+            (for [[i s] (indexed sections)]
+              [:navPoint {:id (:ncx s)
+                          :playOrder (inc i)}
                [:navLabel
-                [:text (:label sec)]]
-               [:content {:src (:src sec)}]])
+                [:text (:label s)]]
+               [:content {:src (:src s)}]])
             ]])))
+
+
+
+
+

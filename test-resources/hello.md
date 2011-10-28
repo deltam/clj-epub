@@ -1,6 +1,3 @@
-# title! hello
-author! hello
-
 ## chapter 1
 this is a pen.
 hello world.

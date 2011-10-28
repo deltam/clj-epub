@@ -46,9 +46,8 @@
         (let [str (String. buf 0 count)
               bytes (.getBytes str "UTF-8")
               len (alength bytes)]
-          (.write output bytes 0 len)))
-      (if (not= count -1) ; 前のifとまとめるとloop-recur syntax error
-        (recur (.read input buf 0 1024))))))
+          (.write output bytes 0 len)
+          (recur (.read input buf 0 1024)))))))
 
 (defn deflated
   "add deflated text to zip file"
